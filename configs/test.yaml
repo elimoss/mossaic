@@ -1,0 +1,30 @@
+robot:
+  deck_size: [400, 400]
+  home_position: [0, 0, 50]
+  acceleration: 2000
+  travel_speed: 150
+  dry_run: true
+
+tile_sources:
+  - name: "Red Tiles"
+    color: "red"
+    position: [50, 50]
+    grid_size: [3, 3, 5]
+    tile_size: [10, 10]
+    tile_spacing: [12, 12]
+
+  - name: "Blue Tiles"
+    color: "blue"
+    position: [100, 50]
+    grid_size: [3, 3, 5]
+    tile_size: [10, 10]
+    tile_spacing: [12, 12]
+
+destination:
+  position: [200, 200]
+  grid_size: [5, 5]
+  tile_size: [10, 10]
+  tile_spacing: [12, 12]
+
+mosaic_design:
+  file: "mosaic.csv"
