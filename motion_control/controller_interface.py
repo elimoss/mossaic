@@ -8,43 +8,43 @@ class MotionController:
         self.default_feedrate = feedrate
 
         self.connection = serial.Serial(port, 115200)
+        self.init_controller_settings()
 
-
-
+    def init_controller_settings(self):
         # microstepping
         # ser.write(b'M350 X16 Y16 Z16 E16 I1\r\n')
         # steps per mm
-        self.run_gcode('M92 X80 Y80 Z80 E100')
+        self.run_gcode('M92 X80 Y80 Z80 E100', silent=True)
         # set max acceleration
-        self.run_gcode(f"M201 X1 Y6000 Z3000 E5000")
+        self.run_gcode(f'M201 X1 Y6000 Z4500 E5000', silent=True)
         # acceleration
-        self.run_gcode(f"M204 P10000 T10000")
-        # self.connection.readline()
-        # junction deviation
-        # self.run_gcode('M205 J0.05')
+        self.run_gcode(f'M204 P10000 T10000', silent=True)
         # max feedrate
-        self.run_gcode('M203 X1 Y30000 Z40000 E5000')
+        self.run_gcode('M203 X1 Y1000 Z650 E5000', silent=True)
         # motor current
-        self.run_gcode("M906 X1500 Z1800 Y1500")
+        self.run_gcode('M906 X1500 Z1800 Y1500', silent=True)
 
-    def run_gcode(self, gcode: str):
+    def run_gcode(self, gcode: str, silent: bool = False):
         if not gcode.endswith('\r\n'):
             gcode += '\r\n'
         gcode_encoded = gcode.encode()
-        self.__run_and_wait_for_completion(gcode_encoded)
+        self.__run_and_wait_for_completion(gcode_encoded, silent)
 
-    def __run_and_wait_for_completion(self, gcode: bytes):
+    def __run_and_wait_for_completion(self, gcode: bytes, silent: bool):
         self.connection.write(gcode)
         # wait 200ms
         time.sleep(0.1)
-        print(self.connection.readline().decode().strip())
+        if not silent:
+            print(self.connection.readline().decode().strip())
         self.connection.write(b"M400\r\n")
         time.sleep(0.1)
         while True:
             response = self.connection.readline().decode().strip()
-            print('\t'.join([gcode.decode(), response]))
+            if not silent:
+                print('\t'.join([gcode.decode(), response]))
             if response == "ok":
                 break
+            time.sleep(0.1)
 
     def home(self, home_x=True, home_y=True, home_z=False):
         print("Homing....")
@@ -74,10 +74,7 @@ class MotionController:
 
 if __name__ == "__main__":
     ctrl = MotionController()
-    x_feedrate = 40000
-    y_feedrate = 60000
-    ctrl.jog(200, 0,  feedrate=x_feedrate)
-    ctrl.jog(200, 200, feedrate=y_feedrate)
-    ctrl.jog(0, 200, feedrate=x_feedrate)
-    ctrl.jog(0, 0, feedrate=y_feedrate)
+    feedrate = 60000
+    ctrl.jog(400, 300, feedrate=feedrate)
+    ctrl.jog(0, 0, feedrate=feedrate)
     ctrl.disable_steppers()
