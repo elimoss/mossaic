@@ -1,85 +1,83 @@
 import time
 
+import serial
 
-class ImagerMotionController:
-    def __init__(self, port, feedrate=3000):
-        from printrun import printcore
 
-        def _monkeypatch_printcore_horseshit(printcore):
-            if printcore.send_thread:
-                printcore.stop_send_thread = True
-                try:
-                    printcore.send_thread.join()
-                except RuntimeError:
-                    # print("Caught the join in a horrible monkeypatch, continuing")
-                    pass
-                printcore.send_thread = None
+class MotionController:
+    def __init__(self, port= '/dev/tty.usbmodem20793672524E1', feedrate=10000):
+        self.default_feedrate = feedrate
 
-        printcore.printcore._stop_sender = _monkeypatch_printcore_horseshit
+        self.connection = serial.Serial(port, 115200)
 
-        p = printcore.printcore(port, 115200)  # or p.printcore('COM3',115200) on Windows
-        p.loud = True
-        print("Initializing.....")
-        time.sleep(1)  # allow to connect 🙄
-        if not p.online:
-            raise Exception(f"Could not connect to robot on {port}")
-        self.feed = feedrate
-        self.printcore = p
 
-        self.printcore.send_now('G21')  # set units to mm
-        self.printcore.send_now('M203 X600000 Z600000 Y50000')  # set max feedrate super high (still limited by firmware)
 
-    def close(self):
-        self.printcore.cancelprint()
-        self.printcore.disconnect()
-    def home(self):
+        # microstepping
+        # ser.write(b'M350 X16 Y16 Z16 E16 I1\r\n')
+        # steps per mm
+        self.run_gcode('M92 X80 Y80 Z80 E100')
+        # set max acceleration
+        self.run_gcode(f"M201 X1 Y6000 Z3000 E5000")
+        # acceleration
+        self.run_gcode(f"M204 P10000 T10000")
+        # self.connection.readline()
+        # junction deviation
+        # self.run_gcode('M205 J0.05')
+        # max feedrate
+        self.run_gcode('M203 X1 Y30000 Z40000 E5000')
+        # motor current
+        self.run_gcode("M906 X1500 Z1800 Y1500")
+
+    def run_gcode(self, gcode: str):
+        if not gcode.endswith('\r\n'):
+            gcode += '\r\n'
+        gcode_encoded = gcode.encode()
+        self.__run_and_wait_for_completion(gcode_encoded)
+
+    def __run_and_wait_for_completion(self, gcode: bytes):
+        self.connection.write(gcode)
+        # wait 200ms
+        time.sleep(0.1)
+        print(self.connection.readline().decode().strip())
+        self.connection.write(b"M400\r\n")
+        time.sleep(0.1)
+        while True:
+            response = self.connection.readline().decode().strip()
+            print('\t'.join([gcode.decode(), response]))
+            if response == "ok":
+                break
+
+    def home(self, home_x=True, home_y=True, home_z=False):
+        print("Homing....")
+        # set homing speed and sensitivity
         # touch off all axis limit switches
-        self._move(['G28'])
-        # park position
-        self.park()
+        cmd = 'G28'
+        if home_x:
+            cmd += ' X0'
+        if home_y:
+            cmd += ' Y0'
+        if home_z:
+            cmd += ' Z0'
+        if not any([home_x, home_y, home_z]):
+            print("No axis to home")
+            return
 
-    def park(self):
-        self._move(['G0 Z100 F2000', 'G0 X10 Y300 F3000'])  # up and back
+        self.run_gcode(cmd)
 
-    def move_z(self, z_height, cam=None, speed_factor=0.8):
-        # print(f"Moving to {z_height}")
-        images = self._move([f'G1 Z{z_height} F{self.feed*speed_factor}'], cam)
-        return images
+    def disable_steppers(self):
+        self.run_gcode("M84")
 
-    def vertical_image_sweep(self, start, stop, cam):
-        self.move_z(start, speed_factor=0.7)
-        images = self.move_z(stop, cam, speed_factor=0.6)
-        # print(f"captured {len(images)} images")
-        return images
-
-    def _move(self, gcode: list):
-        from printrun import gcoder
-        gcode += ['G4 P100']
-        gcode = gcoder.LightGCode(gcode)
-
-        # this has been throwing RuntimeError: cannot join thread before it is started
-        # workaround by trying it a few times
-        self.printcore.startprint(gcode)  # this will start a print
-        images = []
-        # print(f"Well {well}: ({x}, {y})")
-
-        return images
-
-    def jog(self, x, y, force_feed=None):
-        self._move([f"G0 X{x} Y{y} F{force_feed or self.feed}"])
-        while controller.printcore.printing:
-            time.sleep(0.1)
+    def jog(self, x, y, feedrate=None):
+        # Z is driving X because the controller board has dual z outputs and i have dual x motors.
+        # Y is Y. there is no Z or E.
+        self.run_gcode(f"G1 Z{x} Y{y} F{feedrate or self.default_feedrate}")
 
 
 if __name__ == "__main__":
-    controller = ImagerMotionController("/dev/tty.usbmodem20793672524E1", 6000)
-    dest1 = 0
-    dest2 = 100
-    curr_dest = dest1
-    for feedrate in range(5000, 50000, 1000):
-        print(feedrate)
-        controller.jog(curr_dest, curr_dest, force_feed=feedrate)
-        curr_dest = dest2 if curr_dest == dest1 else dest1
-
-    controller.close()
-
+    ctrl = MotionController()
+    x_feedrate = 40000
+    y_feedrate = 60000
+    ctrl.jog(200, 0,  feedrate=x_feedrate)
+    ctrl.jog(200, 200, feedrate=y_feedrate)
+    ctrl.jog(0, 200, feedrate=x_feedrate)
+    ctrl.jog(0, 0, feedrate=y_feedrate)
+    ctrl.disable_steppers()
