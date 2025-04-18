@@ -20,7 +20,7 @@ class MotionController:
         # acceleration
         self.run_gcode(f'M204 P30000 T30000', silent=True)
         # max feedrate
-        self.run_gcode('M203 X1000 Y500 Z300', silent=True)
+        self.run_gcode('M203 X450 Y500 Z300', silent=True)
         # motor current
         self.run_gcode('M906 X1800 Y1800 Z800', silent=True)
         # set microstepping
@@ -84,8 +84,8 @@ class MotionController:
             self.run_gcode(cmd + f" F{feedrate or self.default_feedrate}")
 
     def pickup(self, z_height, feedrate=None):
-        self.jog(z=z_height)
         self.jog(z=-10, feedrate=feedrate or self.default_feedrate)
+        self.jog(z=z_height)
 
     def set_feedrate(self, feedrate):
         self.default_feedrate = feedrate
@@ -94,14 +94,12 @@ class MotionController:
 if __name__ == "__main__":
     ctrl = MotionController(feedrate=40000)
     # ctrl.home(home_x=False, home_y=False, home_z=True)
-    ctrl.jog(x=200)
-    ctrl.jog(x=0)
-    ctrl.jog(z=0)
-    ctrl.jog(z=60)
-    ctrl.jog(z=0)
-    ctrl.jog(z=60)
-    ctrl.jog(z=0)
-    ctrl.jog(z=60)
+    # ctrl.jog(x=600)
+    # ctrl.jog(x=0)
+    # ctrl.jog(z=0)
+    # ctrl.jog(z=60)
+    # ctrl.jog(y=300)
+    # ctrl.jog(y=10)
 
     if False:
         for _ in range(3):
@@ -127,7 +125,7 @@ if __name__ == "__main__":
         ctrl.pickup(60)
         ctrl.pickup(60)
 
-    if False:
+    if True:
         for _ in range(2):
             ctrl.jog(x=1000, y=410)
             ctrl.jog(x=5, y=5)
