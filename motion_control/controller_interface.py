@@ -16,15 +16,13 @@ class MotionController:
         # steps per mm
         self.run_gcode('M92 X80 Y80 Z80', silent=True)
         # set max acceleration
-        self.run_gcode(f'M201 X4000 Y5000 Z4000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
+        self.run_gcode(f'M201 X1400 Y5000 Z2000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
         # acceleration
         self.run_gcode(f'M204 P30000 T30000', silent=True)
         # max feedrate
-        self.run_gcode('M203 X1000 Y500 Z700', silent=True)
+        self.run_gcode('M203 X1000 Y500 Z300', silent=True)
         # motor current
-        self.run_gcode('M906 X1800 Z1800 Y1800', silent=True)
-        # override z limit
-        self.run_gcode('M211 S0', silent=True)
+        self.run_gcode('M906 X1800 Y1800 Z800', silent=True)
         # set microstepping
         # self.run_gcode('M350 X16 Y16 Z16', silent=True)
 
@@ -57,11 +55,11 @@ class MotionController:
         # touch off all axis limit switches
         cmd = 'G28'
         if home_x:
-            cmd += ' Z0'
+            cmd += ' X0'
         if home_y:
             cmd += ' Y0'
         if home_z:
-            cmd += ' X0'
+            cmd += ' Z0'
         if not any([home_x, home_y, home_z]):
             print("No axis to home")
             return
@@ -75,20 +73,19 @@ class MotionController:
         if x is None and y is None and z is None:
             print("No axis to jog")
             return
-        # Z is driving X because the controller board has dual z outputs and i have dual x motors.
-        # Y is Y. z is driven by x.
-        cmd = "G1"
         if x is not None:
-            cmd += f" Z{x}"
+            cmd = f"G1 X{x}"
+            self.run_gcode(cmd + f" F{feedrate or self.default_feedrate}")
         if y is not None:
-            cmd += f" Y{y}"
+            cmd = f"G1 Y{y}"
+            self.run_gcode(cmd + f" F{feedrate or self.default_feedrate}")
         if z is not None:
-            cmd += f" X{z}"
-        self.run_gcode(cmd + f" F{feedrate or self.default_feedrate}")
+            cmd = f"G1 Z{z}"
+            self.run_gcode(cmd + f" F{feedrate or self.default_feedrate}")
 
     def pickup(self, z_height, feedrate=None):
         self.jog(z=z_height)
-        self.jog(z=10, feedrate=feedrate or self.default_feedrate)
+        self.jog(z=-10, feedrate=feedrate or self.default_feedrate)
 
     def set_feedrate(self, feedrate):
         self.default_feedrate = feedrate
@@ -96,13 +93,21 @@ class MotionController:
 
 if __name__ == "__main__":
     ctrl = MotionController(feedrate=40000)
-    # ctrl.home(home_x=True, home_y=True, home_z=True)
+    # ctrl.home(home_x=False, home_y=False, home_z=True)
+    ctrl.jog(x=200)
+    ctrl.jog(x=0)
+    ctrl.jog(z=0)
+    ctrl.jog(z=60)
+    ctrl.jog(z=0)
+    ctrl.jog(z=60)
+    ctrl.jog(z=0)
+    ctrl.jog(z=60)
 
-    if True:
-        for _ in range(1):
-            ctrl.pickup(60, feedrate=4000)
+    if False:
+        for _ in range(3):
+            ctrl.pickup(50)
 
-    if True:
+    if False:
         # a series of single-axis movements
         ctrl.jog(x=100)
         ctrl.jog(x=10)
@@ -122,12 +127,10 @@ if __name__ == "__main__":
         ctrl.pickup(60)
         ctrl.pickup(60)
 
-    if True:
+    if False:
         for _ in range(2):
-            ctrl.jog(x=500)
-            ctrl.jog(x=300)
-            ctrl.jog(y=10)
-            ctrl.jog(y=250)
+            ctrl.jog(x=1000, y=410)
+            ctrl.jog(x=5, y=5)
     # ctrl.jog(x=50, y=50)
 
     ctrl.disable_steppers()
