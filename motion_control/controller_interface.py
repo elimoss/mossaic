@@ -16,40 +16,59 @@ class MotionController:
         # steps per mm
         self.run_gcode('M92 X80 Y80 Z80', silent=True)
         # set max acceleration
-        self.run_gcode(f'M201 X1400 Y5000 Z2000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
+        # self.run_gcode(f'M201 X1400 Y2000 Z2000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
+        self.run_gcode(f'M201 X200 Y200 Z2000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
         # acceleration
         self.run_gcode(f'M204 P30000 T30000', silent=True)
         # max feedrate
-        self.run_gcode('M203 X450 Y500 Z300', silent=True)
+        # self.run_gcode('M203 X450 Y500 Z300', silent=True)
+        self.run_gcode('M203 X200 Y200 Z300', silent=True)
         # motor current
-        self.run_gcode('M906 X1800 Y1800 Z800', silent=True)
+        self.run_gcode('M906 X1800 Y1800 Z500', silent=True)
         # set microstepping
         # self.run_gcode('M350 X16 Y16 Z16', silent=True)
 
-
-    def run_gcode(self, gcode: str, silent: bool = False):
+    def run_gcode(self, gcode: str, silent: bool = False, wait: bool = True):
+        # maybe fill in feedrate
+        if gcode.startswith('G1'):
+            if 'F' not in gcode:
+                gcode += f" F{self.default_feedrate}"
         if not gcode.endswith('\r\n'):
             gcode += '\r\n'
         gcode_encoded = gcode.encode()
-        self.__run_and_wait_for_completion(gcode_encoded, silent)
+        self.__run(gcode_encoded, silent, wait)
 
-    def __run_and_wait_for_completion(self, gcode: bytes, silent: bool):
+    def __run(self, gcode: bytes, silent: bool, wait: bool):
         self.connection.write(gcode)
         # wait 200ms
         # time.sleep(0.1)
-        if not silent:
-            print(self.connection.readline().decode().strip())
-        self.connection.write(b"M400\r\n")
-        # time.sleep(0.1)
+        # read until ok
+
+        responses = []
         while True:
             response = self.connection.readline().decode().strip()
-            if not silent:
-                print('\t'.join([gcode.decode(), response]))
             if response == "ok":
                 break
-            # time.sleep(0.1)
+            if response.startswith("Error:"):
+                print(response)
+                break
+            if response.startswith("echo:"):
+                continue
+            responses.append(response)
+        if not silent:
+            print('\t'.join([gcode.decode(), '\t'.join(responses)]))
+        # time.sleep(0.1)
+        if wait:
+            self.connection.write(b"M400\r\n")
+            while True:
+                response = self.connection.readline().decode().strip()
+                if not silent:
+                    print('\t'.join([gcode.decode(), response]))
+                if response == "ok":
+                    break
+                # time.sleep(0.1)
 
-    def home(self, home_x=True, home_y=True, home_z=False):
+    def home(self, home_x=False, home_y=False, home_z=False):
         print("Homing....")
         # set homing speed and sensitivity
         # touch off all axis limit switches
@@ -67,7 +86,7 @@ class MotionController:
         self.run_gcode(cmd)
 
     def disable_steppers(self):
-        self.run_gcode("M84")
+        self.run_gcode("M84", silent=True)
 
     def jog(self, *, x=None, y=None, z=None, feedrate=None):
         if x is None and y is None and z is None:
@@ -90,45 +109,43 @@ class MotionController:
     def set_feedrate(self, feedrate):
         self.default_feedrate = feedrate
 
+    def pen_down_setup(self):
+        self.home(home_z=True)
+        self.jog(z=40)
+
+    def run_file(self, gcode_filepath: str):
+        with open(gcode_filepath, 'r') as f:
+            gcodes = f.readlines()
+            for gcode in gcodes:
+                if gcode.strip() == '':
+                    continue
+                self.run_gcode(gcode, wait=False)
+        # wait for completion
+        self.run_gcode('M400', wait=True, silent=False)
+
+    def run_file_from_sd_card(self, gcode_filepath: str, feed_multiplier: int = 100):
+        # run file from sd card
+        self.run_gcode(f'M23 {gcode_filepath}', wait=False, silent=False)
+        self.run_gcode(f'M220 S{feed_multiplier}')
+        self.run_gcode('M24', wait=True, silent=False)
+        # wait for completion
+
+    def pen_up(self):
+        self.jog(z=60)
+
 
 if __name__ == "__main__":
-    ctrl = MotionController(feedrate=40000)
-    # ctrl.home(home_x=False, home_y=False, home_z=True)
-    # ctrl.jog(x=600)
-    # ctrl.jog(x=0)
-    # ctrl.jog(z=0)
-    # ctrl.jog(z=60)
-    # ctrl.jog(y=300)
-    # ctrl.jog(y=10)
+    ctrl = MotionController(feedrate=3000)
+    # ctrl.home(home_x=True, home_y=True, home_z=True)
 
-    if False:
-        for _ in range(3):
-            ctrl.pickup(50)
+    ctrl.home(home_z=True)
+    ctrl.run_file_from_sd_card('bj', feed_multiplier=400)
 
-    if False:
-        # a series of single-axis movements
-        ctrl.jog(x=100)
-        ctrl.jog(x=10)
-        ctrl.jog(x=500)
-        ctrl.jog(x=300)
-        ctrl.jog(y=100)
-        ctrl.jog(x=100)
-        ctrl.pickup(60)
-        ctrl.jog(y=150)
-        ctrl.jog(x=50)
-        ctrl.pickup(60)
-        ctrl.jog(y=200)
-        ctrl.jog(x=250)
-        ctrl.pickup(60)
-        ctrl.jog(x=300)
-        ctrl.jog(y=100)
-        ctrl.pickup(60)
-        ctrl.pickup(60)
+    # install pen
+    # ctrl.home(home_z=True)
+    # ctrl.pen_down_setup()
 
-    if True:
-        for _ in range(2):
-            ctrl.jog(x=1000, y=410)
-            ctrl.jog(x=5, y=5)
-    # ctrl.jog(x=50, y=50)
+    # list files
+    # ctrl.run_gcode('M20', wait=False, silent=False)
 
     ctrl.disable_steppers()
