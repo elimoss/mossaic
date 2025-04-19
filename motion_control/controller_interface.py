@@ -17,12 +17,12 @@ class MotionController:
         self.run_gcode('M92 X80 Y80 Z80', silent=True)
         # set max acceleration
         # self.run_gcode(f'M201 X1400 Y2000 Z2000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
-        self.run_gcode(f'M201 X200 Y200 Z2000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
+        self.run_gcode(f'M201 X800 Y800 Z2000 E5000', silent=True)  # x stage acceleration is high due to a resonance issue
         # acceleration
         self.run_gcode(f'M204 P30000 T30000', silent=True)
         # max feedrate
         # self.run_gcode('M203 X450 Y500 Z300', silent=True)
-        self.run_gcode('M203 X200 Y200 Z300', silent=True)
+        self.run_gcode('M203 X100 Y100 Z300', silent=True)
         # motor current
         self.run_gcode('M906 X1800 Y1800 Z500', silent=True)
         # set microstepping
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # ctrl.home(home_x=True, home_y=True, home_z=True)
 
     ctrl.home(home_z=True)
-    ctrl.run_file_from_sd_card('bj', feed_multiplier=400)
+    ctrl.run_file_from_sd_card('problem', feed_multiplier=800)
 
     # install pen
     # ctrl.home(home_z=True)
