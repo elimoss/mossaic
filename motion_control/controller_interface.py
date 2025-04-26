@@ -24,7 +24,7 @@ class MotionController:
         # self.run_gcode('M203 X450 Y500 Z300', silent=True)
         self.run_gcode('M203 X400 Y400 Z300', silent=True)
         # motor current
-        self.run_gcode('M906 X100 Y1800 Z1800', silent=True)  # this still works on the old pin assignments, so reducing the z current means x should be reduced
+        self.run_gcode('M906 X100 Y1200 Z1800', silent=True)  # this still works on the old pin assignments, so reducing the z current means x should be reduced
         # set microstepping
         # self.run_gcode('M350 X16 Y16 Z16', silent=True)
 
@@ -113,16 +113,6 @@ class MotionController:
         self.home(home_z=True)
         self.jog(z=40)
 
-    def run_file(self, gcode_filepath: str):
-        with open(gcode_filepath, 'r') as f:
-            gcodes = f.readlines()
-            for gcode in gcodes:
-                if gcode.strip() == '':
-                    continue
-                self.run_gcode(gcode, wait=False)
-        # wait for completion
-        self.run_gcode('M400', wait=True, silent=False)
-
     def run_file_from_sd_card(self, gcode_filepath: str, feed_multiplier: int = 100):
         # run file from sd card
         self.run_gcode(f'M23 {gcode_filepath}', wait=False, silent=False)
@@ -138,11 +128,8 @@ if __name__ == "__main__":
     ctrl = MotionController(feedrate=3000)
     # ctrl.home(home_x=True, home_y=True, home_z=True)
 
-    # ctrl.home(home_z=True)
-    ctrl.run_file_from_sd_card('twisted', feed_multiplier=800)
-
-    # install pen
-    # ctrl.home(home_z=True)
+    ctrl.home(home_z=True)
+    ctrl.run_file_from_sd_card('mako', feed_multiplier=800)
     # ctrl.pen_down_setup()
 
     # list files
