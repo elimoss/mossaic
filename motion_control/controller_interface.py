@@ -22,11 +22,14 @@ class MotionController:
         self.run_gcode(f'M204 P30000 T30000', silent=True)
         # max feedrate
         # self.run_gcode('M203 X450 Y500 Z300', silent=True)
-        self.run_gcode('M203 X400 Y400 Z300', silent=True)
+        self.run_gcode('M203 X900 Y400 Z300', silent=True)
         # motor current
-        self.run_gcode('M906 X100 Y1200 Z1800', silent=True)  # this still works on the old pin assignments, so reducing the z current means x should be reduced
+        self.run_gcode('M906 X300 Y1200 Z2200', silent=True)  # this still works on the old pin assignments, so reducing the z current means x should be reduced
         # set microstepping
         # self.run_gcode('M350 X16 Y16 Z16', silent=True)
+
+        # fan on
+        self.run_gcode('M106')
 
     def run_gcode(self, gcode: str, silent: bool = False, wait: bool = True):
         # maybe fill in feedrate
@@ -111,7 +114,7 @@ class MotionController:
 
     def pen_down_setup(self):
         self.home(home_z=True)
-        self.jog(z=40)
+        self.jog(z=13.5)
 
     def run_file_from_sd_card(self, gcode_filepath: str, feed_multiplier: int = 100):
         # run file from sd card
@@ -126,13 +129,17 @@ class MotionController:
 
 if __name__ == "__main__":
     ctrl = MotionController(feedrate=3000)
-    # ctrl.home(home_x=True, home_y=True, home_z=True)
 
+    # ctrl.home(home_x=True, home_y=True, home_z=True)
     ctrl.home(home_z=True)
-    ctrl.run_file_from_sd_card('mako', feed_multiplier=800)
-    # ctrl.pen_down_setup()
+    ctrl.pen_down_setup()
+    input()
+    ctrl.pen_up()
+    input()
+    ctrl.run_file_from_sd_card('bigmako', feed_multiplier=400)
+
 
     # list files
     # ctrl.run_gcode('M20', wait=False, silent=False)
 
-    ctrl.disable_steppers()
+    # ctrl.disable_steppers()
